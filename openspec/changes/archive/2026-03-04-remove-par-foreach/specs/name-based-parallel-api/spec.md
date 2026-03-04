@@ -1,15 +1,10 @@
-## ADDED Requirements
+## REMOVED Requirements
 
-### Requirement: map with executor name
-`Par` SHALL provide exactly one public method `map(String executorName, List<T> list, Function<? super T, ? extends R> function, ParOptions options)` that resolves the executor from `ParConfig.getExecutor(executorName)` and delegates to the internal parallel execution pipeline. The executor name SHALL also be used for purge service integration.
+### Requirement: forEach with executor name
+**Reason**: The `forEach` method is functionally redundant with `map`. A `Consumer` can be expressed as a `Function` that returns `null`. Removing `forEach` simplifies the API to a single entry point.
+**Migration**: Replace `par.forEach(executorName, list, consumer, options)` with `par.map(executorName, list, item -> { consumer.accept(item); return null; }, options)`.
 
-#### Scenario: Successful map by name
-- **WHEN** an executor is registered with name "io-pool" and `par.map("io-pool", list, function, options)` is called
-- **THEN** the tasks SHALL execute on the registered executor and the method SHALL return an `AsyncBatchResult`
-
-#### Scenario: map with unregistered name
-- **WHEN** `par.map("unknown", list, function, options)` is called and no executor is registered with name "unknown"
-- **THEN** an `IllegalArgumentException` SHALL be thrown with a message indicating the executor name is not registered
+## MODIFIED Requirements
 
 ### Requirement: All previous ParallelHelper overloads removed
 All existing `Par` public methods that accept `ListeningExecutorService` as a parameter SHALL be removed. The only public method on `Par` SHALL be the name-based `map` method defined above. The `forEach` method SHALL also be removed.
