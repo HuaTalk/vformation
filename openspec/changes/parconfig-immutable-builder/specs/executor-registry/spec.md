@@ -1,4 +1,4 @@
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Register executor by name
 `ParConfig.Builder` SHALL provide `executor(String name, ExecutorService executor)` that stores the executor in the builder's registry, keyed by the given name. The executor SHALL be adapted to `ListeningExecutorService` via `MoreExecutors.listeningDecorator()` at build time. If `name` is null or empty, `build()` SHALL throw `IllegalArgumentException`. If `executor` is null, `build()` SHALL throw `IllegalArgumentException`. The runtime mutator methods `registerExecutor()` and `unregisterExecutor()` on `ParConfig` SHALL be removed.
@@ -25,6 +25,16 @@
 #### Scenario: Retrieve an unregistered name
 - **WHEN** no executor has been registered with name "unknown"
 - **THEN** `config.getExecutor("unknown")` SHALL return `null`
+
+## REMOVED Requirements
+
+### Requirement: Unregister executor by name
+**Reason**: `ParConfig` is now immutable. Runtime mutation of the executor registry is no longer supported. Executors are registered at build time via the Builder.
+**Migration**: Use `ParConfig.builder().executor(name, executor).build()` to configure executors. To change the configuration, build a new `ParConfig` instance.
+
+### Requirement: Thread-safe registry operations
+**Reason**: Thread safety is now guaranteed by immutability. All collections in `ParConfig` are unmodifiable after construction. No concurrent mutation is possible, so explicit thread-safety of mutation operations is no longer applicable.
+**Migration**: No migration needed. Thread safety is inherently guaranteed by the immutable design.
 
 ### Requirement: Auto-bridge to purge subsystem
 `ParConfig.resolveThreadPool(String)` SHALL check the `ExecutorResolver` first, then fall back to the builder-registered raw executor registry. This behavior is unchanged, but the underlying storage is now an immutable map populated at build time.
