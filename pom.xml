@@ -12,7 +12,7 @@
     <name>VFormation Parent</name>
     <description>
         VFormation (雁阵) — A structured concurrency toolkit for Java 8+.
-        Cooperative cancellation, fail-fast, deadlock detection, context propagation, sliding-window scheduling.
+        Cooperative cancellation, fail-fast, deadlock detection, concurrency control, smart scheduling.
     </description>
     <url>https://github.com/huatalk/vformation</url>
 

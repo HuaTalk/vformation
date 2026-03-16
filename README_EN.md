@@ -6,9 +6,9 @@
 >
 > This project is under active development. APIs may change. Feedback and suggestions are welcome via Issues.
 
-🪿 **VFormation** is a structured concurrency toolkit for Java 8+, bringing modern structured concurrency concepts — cooperative cancellation, fail-fast, deadlock detection, context propagation — to the Java 8 ecosystem. 🛡️🚀🎯
+🪿 **VFormation** is a structured concurrency toolkit for Java 8+, bringing modern structured concurrency concepts — cooperative cancellation, fail-fast, deadlock detection, concurrency control, smart scheduling — to the Java 8 ecosystem. 🛡️🚀🎯
 
-Just as geese share aerodynamic drag in a V-formation, VFormation orchestrates your parallel tasks through cooperative cancellation, fail-fast, deadlock detection, context propagation, and sliding-window scheduling — **fail immediately, cancel cascadingly, deadlocks visible**.
+Just as geese share aerodynamic drag in a V-formation, VFormation orchestrates your parallel tasks through cooperative cancellation, fail-fast, deadlock detection, concurrency control, and smart scheduling — **fail immediately, cancel cascadingly, deadlocks visible**.
 
 ---
 
@@ -54,7 +54,7 @@ AsyncBatchResult<String> result = par.map(
 List<ListenableFuture<String>> futures = result.getResults();
 ```
 
-That's it. `Par.map` internally handles sliding-window scheduling, timeout control, fail-fast cancellation, and context propagation — no extra configuration needed.
+That's it. `Par.map` internally handles concurrency control, timeout control, and fail-fast cancellation — no extra configuration needed.
 
 ---
 
@@ -72,13 +72,7 @@ That's it. `Par.map` internally handles sliding-window scheduling, timeout contr
 
 **Solution:** Parent-child tokens cascade automatically — cancelling a parent task cascades to all child tasks. The Late-Binding mechanism wires timeout and fail-fast only after all tasks are submitted, avoiding race conditions. Dual exception strategy — `LeanCancellationException` (no stack trace, zero overhead) for high-frequency scenarios, `FatCancellationException` (full stack trace) for debugging.
 
-### 🔗 Context Propagation
-
-**Problem:** `ThreadLocal` values are lost when tasks are submitted to a thread pool. Request-scoped context (trace IDs, user identity, cancellation tokens) cannot automatically transfer to child threads, forcing developers to pass parameters manually in every task.
-
-**Solution:** Two-level map relay based on Alibaba TTL — the parent thread's `curMap` automatically becomes the child thread's `parentMap`, transparently propagating cancellation tokens, task config, and task names with zero intrusion into business code.
-
-### 🚀 Sliding-Window Scheduling
+### 🚀 Concurrency Control
 
 **Problem:** Submitting all tasks to a thread pool at once causes memory pressure and thread starvation when task volume is high. `invokeAll()` blocks until all tasks complete, making it impossible to retrieve results incrementally.
 
@@ -99,7 +93,7 @@ That's it. `Par.map` internally handles sliding-window scheduling, timeout contr
 
 **Solution:** A request-scoped DAG automatically records task dependencies. At request end, cycle detection runs covering both task-level circular dependencies and executor-level self-loops, notifying diagnostic results via SPI callbacks.
 
-### 🎯 Task-Type-Aware Dispatch
+### 🎯 Smart Scheduling
 
 **Problem:** When CPU-bound and IO-bound tasks share the same queue, a flood of IO tasks can starve CPU tasks, causing computation latency to spike.
 

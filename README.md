@@ -8,9 +8,9 @@
 
 ## 项目介绍
 
-如果说 Java 21 的虚拟线程（Virtual Threads）拉开了 Java 并发模型变革的序幕，那么 Java 26 即将发布的结构化并发（Structured Concurrency）无疑标志着 Java 并发编程进入了"结构化时代"。然而，现实是残酷的——绝大多数企业生产系统仍然运行在 Java 8 上，这些系统距离享受结构化并发的红利还有漫长的升级之路。与此同时，开发者在 Java 8 上编写并行代码时，依然面临着取消信号丢失、上下文无法传播、线程池死锁难以诊断等棘手问题，却缺少一个系统性的解决方案。为此，我们发起了 **VFormation（雁阵）** 项目，希望将结构化并发的核心思想——协作式取消、快速失败、上下文传播——带回 Java 8 生态。
+如果说 Java 21 的虚拟线程（Virtual Threads）拉开了 Java 并发模型变革的序幕，那么 Java 26 即将发布的结构化并发（Structured Concurrency）无疑标志着 Java 并发编程进入了"结构化时代"。然而，现实是残酷的——绝大多数企业生产系统仍然运行在 Java 8 上，这些系统距离享受结构化并发的红利还有漫长的升级之路。与此同时，开发者在 Java 8 上编写并行代码时，依然面临着取消信号丢失、线程池死锁难以诊断等棘手问题，却缺少一个系统性的解决方案。为此，我们发起了 **VFormation（雁阵）** 项目，希望将结构化并发的核心思想——协作式取消、快速失败——带回 Java 8 生态。
 
-正如大雁以 V 字阵型协作飞行、分担阻力，VFormation 通过**协作式取消、快速失败、死锁检测、上下文传播和滑动窗口调度**来编排你的并行任务。如今 Java 并发框架主要分为两派：一派是 CompletableFuture 链式编排，本质是响应式流水线，擅长异步编排但缺少结构化语义；另一派则是 ExecutorService + invokeAll 的传统模型，简单直接但缺乏取消传播和失败隔离能力。VFormation 旨在走出第三条路——**以结构化并发为内核，以 Guava ListenableFuture 为基石**，在不升级 JDK 的前提下，让你的并行代码具备**失败即止、取消级联、死锁可见**的工程级保障。我们相信，好的并发框架不应该只是一组 API，而应该是一套安全网——让开发者专注于业务逻辑，把并发的复杂性交给框架去兜底。希望 VFormation 能成为你在 Java 8 并发世界中的可靠伙伴，从"能跑就行"走向"结构化、可观测、可诊断"的并发编程实践。
+正如大雁以 V 字阵型协作飞行、分担阻力，VFormation 通过**协作式取消、快速失败、死锁检测、并发度控制和智能调度**来编排你的并行任务。如今 Java 并发框架主要分为两派：一派是 CompletableFuture 链式编排，本质是响应式流水线，擅长异步编排但缺少结构化语义；另一派则是 ExecutorService + invokeAll 的传统模型，简单直接但缺乏取消传播和失败隔离能力。VFormation 旨在走出第三条路——**以结构化并发为内核，以 Guava ListenableFuture 为基石**，在不升级 JDK 的前提下，让你的并行代码具备**失败即止、取消级联、死锁可见**的工程级保障。我们相信，好的并发框架不应该只是一组 API，而应该是一套安全网——让开发者专注于业务逻辑，把并发的复杂性交给框架去兜底。希望 VFormation 能成为你在 Java 8 并发世界中的可靠伙伴，从"能跑就行"走向"结构化、可观测、可诊断"的并发编程实践。
 
 ---
 
@@ -56,7 +56,7 @@ AsyncBatchResult<String> result = par.map(
 List<ListenableFuture<String>> futures = result.getResults();
 ```
 
-以上就是全部。`Par.map` 内部自动处理滑动窗口调度、超时控制、快速失败取消和上下文传播，无需额外配置。
+以上就是全部。`Par.map` 内部自动处理并发度控制、超时控制和快速失败取消，无需额外配置。
 
 ---
 
@@ -74,13 +74,7 @@ List<ListenableFuture<String>> futures = result.getResults();
 
 **方案：** 父子令牌自动级联，取消父任务即级联取消所有子任务。Late-Binding 机制在所有任务提交后才绑定超时和 fail-fast，避免竞态。双异常策略——`LeanCancellationException`（无堆栈，零开销）用于高频场景，`FatCancellationException`（完整堆栈）用于调试。
 
-### 🔗 上下文传播（Context Propagation）
-
-**问题：** `ThreadLocal` 值在任务提交到线程池后丢失，请求级上下文（链路追踪 ID、用户身份、取消令牌）无法自动传递到子线程，开发者被迫在每个任务中手动传参。
-
-**方案：** 基于 Alibaba TTL 的两级 Map 接力——父线程的 `curMap` 自动成为子线程的 `parentMap`，取消令牌、任务配置、任务名称透明传播，零侵入业务代码。
-
-### 🚀 滑动窗口调度（Sliding-Window Scheduling）
+### 🚀 并发度控制（Concurrency Control）
 
 **问题：** 一次性提交所有任务到线程池，任务量大时造成内存压力和线程饥饿；`invokeAll()` 阻塞到全部完成，无法逐个获取结果。
 
@@ -101,7 +95,7 @@ List<ListenableFuture<String>> futures = result.getResults();
 
 **方案：** 请求级 DAG 图自动记录任务依赖关系，请求结束时执行环路检测，覆盖任务级循环依赖和执行器级自环，通过 SPI 回调通知诊断结果。
 
-### 🎯 任务类型感知调度（Task-Type-Aware Dispatch）
+### 🎯 智能调度（Smart Scheduling）
 
 **问题：** CPU 密集型和 IO 密集型任务混用同一队列，大量 IO 任务排队会饿死 CPU 任务，计算延迟飙升。
 
